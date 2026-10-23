@@ -32,3 +32,24 @@ class AppSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class DeploymentCreateSerializer(serializers.Serializer):
+    app_id = serializers.PrimaryKeyRelatedField(
+        queryset=App.objects.all(),
+        source="app",
+    )
+
+
+class DeploymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Deployment
+        fields = [
+            "id",
+            "app",
+            "status",
+            "logs",
+            "created_at",
+            "finished_at",
+        ]
+        read_only_fields = fields
