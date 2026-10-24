@@ -3,134 +3,190 @@ import useSWR from 'swr';
 import { Card, CardContent } from '@/components/ui/card';
 import AddAppModal from '@/components/AddAppModal';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+const API = 'http://localhost:8000/api';
+
+const fetcher = async (url) => {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error('Request failed');
+  }
+
+  return response.json();
+};
 
 export default function AppsList() {
-  const { data: apps, error, isLoading } = useSWR('http://localhost:8000/app/', fetcher);
+  const {
+    data: appData,
+    error,
+    isLoading,
+  } = useSWR(`${API}/apps/`, fetcher);
+
+  const {
+    data: statusData,
+    error: statusError,
+    isLoading: statusLoading,
+  } = useSWR(`${API}/apps/status/`, fetcher, {
+    refreshInterval: 10000,
+  });
+
+  const apps = appData;
+
+  const statuses = statusData?.results ?? [];
+
+  const statusMap = Object.fromEntries(
+    statuses.map((item) => [item.app_id, item])
+  );
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-muted-foreground">Loading applications...</div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">
+          Loading applications...
+        </p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-destructive">Failed to load applications</div>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-destructive">
+          Failed to load applications
+        </p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="border-b">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Applications
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Manage your Kubernetes deployments
               </p>
             </div>
+
             <AddAppModal />
           </div>
         </div>
       </div>
 
-      {/* Content */}
       <div className="container mx-auto px-4 py-8">
-        {(!apps || apps.length === 0) ? (
+        {apps.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="text-center max-w-md">
-              <h2 className="text-lg font-medium mb-2">No applications yet</h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                Get started by creating your first application deployment.
-              </p>
-              <AddAppModal />
-            </div>
+            <h2 className="mb-2 text-lg font-medium">
+              No apps
+            </h2>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Create your first application.
+            </p>
+            <AddAppModal />
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {apps.map((app) => (
-              <Link
-                key={app.id}
-                to={`/app/${app.id}`}
-                className="block group"
-              >
-                <Card className="h-full transition-all duration-200 hover:shadow-md hover:border-foreground/20 cursor-pointer">
-                  <CardContent className="p-6">
-                    {/* App Name and Namespace */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-base group-hover:text-primary transition-colors">
-                          {app.name}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-muted-foreground">
+            {apps.map((app) => {
+              const appStatus = statusMap[app.id];
+              const status = statusError
+                ? 'unavailable'
+                : appStatus?.status ?? 'unknown';
+
+              const statusClass =
+                status === 'running'
+                  ? 'bg-green-100 text-green-800'
+                  : status === 'not-running'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-muted text-muted-foreground';
+
+              return (
+                <Link
+                  key={app.id}
+                  to={`/app/${app.id}`}
+                  className="group block"
+                >
+                  <Card className="h-full cursor-pointer transition-all hover:border-foreground/20 hover:shadow-md">
+                    <CardContent className="p-6">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-base font-medium group-hover:text-primary">
+                            {app.name}
+                          </h3>
+
+                          <p className="mt-1 text-xs text-muted-foreground">
                             {app.namespace}
-                          </span>
-                          <span className="text-xs text-muted-foreground">•</span>
-                          <span className="text-xs text-muted-foreground">
-                            {app.replicas} {app.replicas === 1 ? 'replica' : 'replicas'}
-                          </span>
+                          </p>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Image */}
-                    <div className="space-y-3">
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Image</div>
-                        <div className="text-sm truncate">
-                          {app.image}
-                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusClass}`}
+                        >
+                          {statusLoading && !appStatus
+                            ? 'Loading...'
+                            : status === 'running'
+                              ? 'Running'
+                              : status === 'not-running'
+                                ? 'Not running'
+                                : status === 'unavailable'
+                                  ? 'Unavailable'
+                                  : 'Unknown'}
+                        </span>
                       </div>
 
-                      {/* Port */}
-                      <div className="flex items-center justify-between">
+                      <div className="space-y-3">
                         <div>
-                          <div className="text-xs text-muted-foreground">Port</div>
-                          <div className="text-sm font-medium">{app.port}</div>
+                          <p className="mb-1 text-xs text-muted-foreground">
+                            Image
+                          </p>
+                          <p className="truncate text-sm">
+                            {app.image}
+                          </p>
                         </div>
-                        <div className="text-right">
-                          <div className="text-xs text-muted-foreground">Created</div>
-                          <div className="text-sm">
-                            {new Date(app.created_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric'
-                            })}
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Replicas
+                            </p>
+                            <p className="text-sm font-medium">
+                              {app.replicas}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Port
+                            </p>
+                            <p className="text-sm font-medium">
+                              {app.port}
+                            </p>
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">
+                              Pods
+                            </p>
+                            <p className="text-sm font-medium">
+                              {appStatus?.pod_count ?? '—'}
+                            </p>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Hover indicator */}
-                    <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">
-                        Last updated {new Date(app.updated_at).toLocaleDateString()}
-                      </span>
-                      <svg
-                        className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                      <div className="mt-4 flex items-center justify-between border-t pt-4">
+                        <p className="text-xs text-muted-foreground">
+                          Updated {app.updated_at}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
