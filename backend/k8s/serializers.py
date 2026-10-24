@@ -51,5 +51,6 @@ class DeploymentSerializer(serializers.ModelSerializer):
             "logs",
             "created_at",
             "finished_at",
+            "helm_values"
         ]
         read_only_fields = fields
