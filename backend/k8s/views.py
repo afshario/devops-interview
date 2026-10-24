@@ -1,4 +1,4 @@
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import App, Deployment
@@ -65,10 +65,24 @@ class AppViewSet(viewsets.ModelViewSet):
         return Response({"results": results})
 
 
-class DeploymentViewSet(viewsets.GenericViewSet):
-    
+class DeploymentViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = Deployment.objects.select_related("app")
     serializer_class = DeploymentSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        app_id = self.request.query_params.get("app")
+
+        if app_id:
+            queryset = queryset.filter(app_id=app_id)
+
+        return queryset
 
     # POST /api/deployments/
     def create(self, request, *args, **kwargs):
@@ -84,6 +98,7 @@ class DeploymentViewSet(viewsets.GenericViewSet):
 
         try:
             values = build_values(app)
+            deployment.helm_values = values
             result = deploy_app(app, values)
 
             deployment.logs = result.get("logs", "")
@@ -101,7 +116,12 @@ class DeploymentViewSet(viewsets.GenericViewSet):
 
         finally:
             deployment.save(
-                update_fields=["status", "logs", "finished_at"]
+            update_fields=[
+                "status",
+                "logs",
+                "helm_values",
+                "finished_at",
+                ]
             )
 
         return Response(
