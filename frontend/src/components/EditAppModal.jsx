@@ -74,7 +74,7 @@ export default function EditAppModal({ app }) {
     };
     
     try {
-      const response = await fetch(`http://localhost:8000/app/${app.id}/`, {
+      const response = await fetch(`http://localhost:8000/api/apps/${app.id}/`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -83,8 +83,8 @@ export default function EditAppModal({ app }) {
       });
 
       if (response.ok) {
-        mutate(`http://localhost:8000/app/${app.id}/`);
-        mutate('http://localhost:8000/app/');
+        mutate(`http://localhost:8000/api/apps/${app.id}/`);
+        mutate('http://localhost:8000/api/apps/');
         setOpen(false);
       }
     } catch (error) {

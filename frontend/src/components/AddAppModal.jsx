@@ -29,7 +29,6 @@ export default function AddAppModal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Parse environment variables from text
     let envVars = {};
     if (envVarsText.trim()) {
       try {
@@ -51,7 +50,7 @@ export default function AddAppModal() {
     };
     
     try {
-      const response = await fetch('http://localhost:8000/app/', {
+      const response = await fetch('http://localhost:8000/api/apps/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,7 +59,7 @@ export default function AddAppModal() {
       });
 
       if (response.ok) {
-        mutate('http://localhost:8000/app/');
+        mutate('http://localhost:8000/api/app/');
         setOpen(false);
         setFormData({
           name: '',

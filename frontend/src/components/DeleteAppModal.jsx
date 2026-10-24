@@ -18,12 +18,12 @@ export default function DeleteAppModal({ app }) {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/app/${app.id}/`, {
+      const response = await fetch(`http://localhost:8000/api/apps/${app.id}/`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        mutate('http://localhost:8000/app/');
+        mutate('http://localhost:8000/api/apps/');
         setOpen(false);
         navigate('/');
       }
