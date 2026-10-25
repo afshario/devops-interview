@@ -1,3 +1,4 @@
+from datetime import datetime
 from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,7 +8,7 @@ from .serializers import (
     DeploymentSerializer,
     DeploymentCreateSerializer,
 )
-from .services.helm_manager import build_values, deploy_app, uninstall_app
+from .services.helm_manager import deploy_app, uninstall_app, build_file_values
 from .services.kubernetes_manager import get_kubernetes_client
 
 
@@ -86,7 +87,6 @@ class DeploymentViewSet(
 ):
     queryset = Deployment.objects.select_related("app")
     serializer_class = DeploymentSerializer
-    pagination_class = None
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -111,10 +111,10 @@ class DeploymentViewSet(
         )
 
         try:
-            values = build_values(app)
-            deployment.helm_values = values
-            result = deploy_app(app, values)
-
+            file_name , helm_values = build_file_values(app)
+            result = deploy_app(app, file_name)
+            deployment.helm_values = helm_values
+            deployment.finished_at = datetime.now()
             deployment.logs = result.get("logs", "")
             deployment.status = (
                 Deployment.Status.SUCCESS
@@ -133,8 +133,8 @@ class DeploymentViewSet(
             update_fields=[
                 "status",
                 "logs",
-                "helm_values",
                 "finished_at",
+                "helm_values",
                 ]
             )
 
