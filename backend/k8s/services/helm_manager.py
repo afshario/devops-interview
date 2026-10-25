@@ -137,3 +137,38 @@ def deploy_app(app, values):
                   + result.stderr
             ),
       }
+      
+      
+def uninstall_app(app):
+      release_name = f"app-{app.id}"
+
+      uninstall_command = [
+            "helm",
+            "uninstall",
+            release_name,
+            "-n",
+            app.namespace
+      ]
+
+      result = subprocess.run(
+            uninstall_command,
+            capture_output=True,
+            text=True,
+            timeout=360,
+            check=False,
+      )
+      
+      if result.returncode == 0:
+            success = True
+      else:
+            success = False
+
+      return {
+            "success": success,
+            "stage": "delete",
+            "logs": (
+                  result.stdout
+                  + "\n"
+                  + result.stderr
+            ),
+      }
