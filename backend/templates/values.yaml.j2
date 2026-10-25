@@ -1,0 +1,30 @@
+deployments:
+  {{ app_name }}:
+    replicas: {{ replicas }}
+    containers:
+      {{ app_name }}:
+        name: {{ app_name | tojson }}
+        image: {{ image_name | tojson }}
+        imageTag: {{ image_tag | tojson }}
+        ports:
+          - name: http
+            containerPort: {{ port }}
+        env:
+        {% if env %}
+          {% for key, value in env.items() %}
+          - name: {{ key | tojson }}
+            value: {{ value | string | tojson }}
+          {% endfor %}
+        {% else %}
+          []
+{% endif %}
+    podLabels:
+      app-manager-id: {{ app_id | string | tojson }}
+
+services:
+  {{ app_name }}:
+    type: ClusterIP
+    ports:
+      - name: http
+        port: {{ port }}
+        targetPort: http
