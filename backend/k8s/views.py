@@ -1,3 +1,4 @@
+from datetime import datetime
 from rest_framework import status, viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -86,7 +87,6 @@ class DeploymentViewSet(
 ):
     queryset = Deployment.objects.select_related("app")
     serializer_class = DeploymentSerializer
-    pagination_class = None
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -113,6 +113,7 @@ class DeploymentViewSet(
         try:
             values = build_values(app)
             deployment.helm_values = values
+            deployment.finished_at = datetime.now()
             result = deploy_app(app, values)
 
             deployment.logs = result.get("logs", "")
