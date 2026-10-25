@@ -1,8 +1,9 @@
-import json
 import subprocess
+from pathlib import Path
+from django.conf import settings
+from jinja2 import Environment, FileSystemLoader
 
 chart_oci = "oci://registry.nixys.ru/nuc/nxs-universal-chart"
-
 
 def split_image_text(image_ref):
       last_slash = image_ref.rfind("/")
@@ -20,88 +21,43 @@ def split_image_text(image_ref):
       return image_ref, "latest"
 
 
-def build_values(app):
+def build_file_values(app):
       image, image_tag = split_image_text(app.image)
-
-      app_key = f"app-{app.id}"
-      app_label = str(app.id)
-
       environment = app.environment_variables or {}
+      env = Environment(
+            loader=FileSystemLoader(str(settings.BASE_DIR / "templates")),
+            autoescape=False,
+      )
+      template = env.get_template("values.yaml.j2")
 
-      container = {
-            "name": "app",
-            "image": image,
-            "imageTag": image_tag,
-            "ports": [
-                  {
-                  "name": "http",
-                  "containerPort": app.port,
-                  }
-            ],
-            "env": [
-                  {
-                  "name": key,
-                  "value": str(value),
-                  }
+      template_output = template.render({
+            "app_name" : app.name ,
+            "replicas" : app.replicas ,
+            "image_name" :image ,
+            "image_tag":image_tag ,
+            "env": {
+                  key: str(value)
                   for key, value in environment.items()
-            ],
-      }
-
-      values = {
-            "deployments": {
-                  app_key: {
-                  "replicas": app.replicas,
-                  "podLabels": {
-                        "app-manager-id": app_label,
-                  },
-                  "extraSelectorLabels": {
-                        "app-manager-id": app_label,
-                  },
-                  "containers": {
-                        "app": container,
-                  },
-                  }
             },
-            "services": {
-                  app_key: {
-                  "ports": [
-                        {
-                              "name": "http",
-                              "port": app.port,
-                              "targetPort": "http",
-                        }
-                  ],
-                  "extraSelectorLabels": {
-                        "app-manager-id": app_label,
-                  },
-                  }
-            },
-      }
+            "app_id":app.id,
+            "port":app.port
+      })
 
-      return values
+      template_file = Path(f"generated/values-{app.id}.yaml")
+      template_file.write_text(template_output, encoding="utf-8")
+      return (template_file , template_output)
 
 
-def values_args(values):
-      args = []
 
-      for key, value in values.items():
-            args.extend([
-                  "--set-json",
-                  f"{key}={json.dumps(value, separators=(',', ':'))}",
-            ])
-
-      return args
-
-
-def deploy_app(app, values):
+def deploy_app(app, file_name):
       release_name = f"app-{app.id}"
-
       common_args = [
             release_name,
             chart_oci,
             "--namespace",
             app.namespace,
-            *values_args(values),
+            "-f",
+            file_name,
       ]
 
       deploy_command = [
