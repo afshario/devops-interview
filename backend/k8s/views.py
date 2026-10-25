@@ -7,7 +7,7 @@ from .serializers import (
     DeploymentSerializer,
     DeploymentCreateSerializer,
 )
-from .services.helm_manager import build_values, deploy_app
+from .services.helm_manager import build_values, deploy_app, uninstall_app
 from .services.kubernetes_manager import get_kubernetes_client
 
 
@@ -15,6 +15,20 @@ class AppViewSet(viewsets.ModelViewSet):
     queryset = App.objects.all()
     serializer_class = AppSerializer
 
+
+    def destroy(self, request, *args, **kwargs):
+        app = self.get_object()
+        result = uninstall_app(app)
+        self.perform_destroy(app)
+
+        return Response(
+            {
+                "detail": "App deleted successfully.",
+                "logs": result.get("logs", ""),
+            },
+            status=status.HTTP_200_OK,
+        )
+    
     # GET /api/apps/{id}/status/
     @action(detail=True, methods=["get"])
     def status(self, request, pk=None):
