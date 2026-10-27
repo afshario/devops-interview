@@ -21,7 +21,7 @@ def split_image_text(image_ref):
       return image_ref, "latest"
 
 
-def build_file_values(app):
+def build_values_file(app):
       image, image_tag = split_image_text(app.image)
       environment = app.environment_variables or {}
       env = Environment(
